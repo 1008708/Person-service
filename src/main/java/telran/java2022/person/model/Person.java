@@ -1,9 +1,12 @@
 package telran.java2022.person.model;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.Inheritance;
+import javax.persistence.InheritanceType;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -16,7 +19,9 @@ import lombok.Setter;
 @Getter
 @EqualsAndHashCode(of="id")
 @Entity
-public class Person {
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+public class Person implements Serializable{
+	private static final long serialVersionUID = -2870335709562769863L;
 	@Id
 	Integer id;
 	@Setter

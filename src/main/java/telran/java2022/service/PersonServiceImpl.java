@@ -1,28 +1,31 @@
 package telran.java2022.service;
 
 import java.time.LocalDate;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 
 import org.modelmapper.ModelMapper;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import telran.java2022.person.dao.PersonRepository;
 import telran.java2022.person.dto.AddressDto;
+import telran.java2022.person.dto.ChildDto;
 import telran.java2022.person.dto.CityPopulationDto;
+import telran.java2022.person.dto.EmployeeDto;
 import telran.java2022.person.dto.PersonDto;
 import telran.java2022.person.dto.PersonNotFoundException;
 import telran.java2022.person.model.Address;
+import telran.java2022.person.model.Child;
+import telran.java2022.person.model.Employee;
 import telran.java2022.person.model.Person;
 
 @Service
 @RequiredArgsConstructor
-public class PersonServiceImpl implements PersonService {
+public class PersonServiceImpl implements PersonService, CommandLineRunner {
 
 	final PersonRepository personRepository;
 	final ModelMapper modelMapper;
@@ -33,14 +36,36 @@ public class PersonServiceImpl implements PersonService {
 		if (personRepository.existsById(personDto.getId())) {
 			return false;
 		}
-		personRepository.save(modelMapper.map(personDto, Person.class));
+		personRepository.save(modelMapper.map(personDto, getModelClass(personDto)));
 		return true;
+	}
+
+	private Class<? extends Person> getModelClass(PersonDto personDto) {
+		if(personDto instanceof EmployeeDto) {
+			return Employee.class;
+		}
+		if(personDto instanceof ChildDto) {
+			return Child.class;
+		} 
+		return Person.class;
 	}
 
 	@Override
 	public PersonDto findPersonById(Integer id) {
 		Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
-		return modelMapper.map(person, PersonDto.class);
+		return modelMapper.map(person, getDtoClass(person));
+	}
+
+	@SuppressWarnings("unchecked")
+	private Class<? extends PersonDto> getDtoClass(Person person) {
+		String[] str = person.getClass().getName().split("\\.");
+		str[str.length-2] = "dto";
+		String className = String.join(".", str) + "Dto";
+		try {
+			return (Class<? extends PersonDto>) Class.forName(className);
+		} catch (ClassNotFoundException e) {
+			return PersonDto.class;
+		}
 	}
 
 	@Override
@@ -48,7 +73,7 @@ public class PersonServiceImpl implements PersonService {
 	public PersonDto removePerson(Integer id) {
 		Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
 		personRepository.deleteById(id);
-		return modelMapper.map(person, PersonDto.class);
+		return modelMapper.map(person, getDtoClass(person));
 	}
 
 	@Override
@@ -56,7 +81,7 @@ public class PersonServiceImpl implements PersonService {
 	public PersonDto updatePersonName(Integer id, String name) {
 		Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
 		person.setName(name);
-		return modelMapper.map(person, PersonDto.class);
+		return modelMapper.map(person, getDtoClass(person));
 	}
 
 	@Override
@@ -64,7 +89,7 @@ public class PersonServiceImpl implements PersonService {
 	public PersonDto updatePersonAddress(Integer id, AddressDto addressDto) {
 		Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
 		person.setAddress(modelMapper.map(addressDto, Address.class));
-		return modelMapper.map(person, PersonDto.class);
+		return modelMapper.map(person, getDtoClass(person));
 	}
 
 	@Override
@@ -103,6 +128,26 @@ public class PersonServiceImpl implements PersonService {
 //					.map(e->new CityPopulationDto(e.getKey(), e.getValue()))
 //					.collect(Collectors.toList());
 		return personRepository.getCitiesPopulation();
+	}
+
+	@Override
+	public void run(String... args) throws Exception {
+		Person person = new Person(1000, "John", LocalDate.of(1985, 04, 11), new Address("Tel Aviv", "Ben Gvirol", 87));
+		Child child = new Child(2000, "Mosche", LocalDate.of(2018, 07, 05), new Address("Ashkelon", "Bar Kohva", 21), "Shalom");
+		Employee employee = new Employee(3000, "Mary", LocalDate.of(1995, 11, 23), new Address("Rehovot", "Herzl", 7), "Motorola", 20000);
+		personRepository.save(person);
+		personRepository.save(child);
+		personRepository.save(employee);
+	}
+
+	@Override
+	public Iterable<PersonDto> findEmployeeBySalary(int min, int max) {
+		return personRepository.findEmployeeBySalary(min, max);
+	}
+
+	@Override
+	public Iterable<PersonDto> getChildren() {
+		return personRepository.getChildren();
 	}
 
 }
